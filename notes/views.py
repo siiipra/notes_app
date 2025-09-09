@@ -9,6 +9,7 @@ from .models import Note
 from .serializers import NoteSerializer, UserSerializer
 # Create your views here.
 
+
 @api_view(['POST'])
 def register_user(request):
     serializer = UserSerializer(data=request.data)
@@ -32,3 +33,15 @@ class NoteViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+def homepage(request):
+    return render(request, 'notes/notes.html')
+
+
+def signup(request):
+    return render(request, 'notes/signup.html')
+
+
+def login(request):
+    return render(request, 'notes/login.html')
