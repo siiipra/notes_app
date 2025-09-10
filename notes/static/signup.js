@@ -35,9 +35,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (response.ok) { // Check for a successful response (e.g., 201 Created)
+                // Save the tokens to localStorage
+                localStorage.setItem('accessToken', data.access);
+                localStorage.setItem('refreshToken', data.refresh);
+
                 messageDiv.textContent = 'User registered successfully!';
                 messageDiv.className = 'mt-4 text-center text-sm text-green-600';
                 form.reset(); // Clear the form on success
+
+                // Redirect the user to the notes page after successful signup
+                window.location.href = '/';
+
             } else { // Handle errors from the server
                 let errorMessage = 'An error occurred during registration.';
                 if (data.username && data.username.length > 0) {

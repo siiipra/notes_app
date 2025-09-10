@@ -1,90 +1,90 @@
-// A simple array to store notes, no backend persistence
-let notes = [];
+document.addEventListener('DOMContentLoaded', () => {
+            const noteList = document.getElementById('note-list');
+            const addNoteForm = document.getElementById('add-note-form');
+            const noteContentInput = document.getElementById('note-content');
 
-const notesContainer = document.getElementById('notes-container');
-const emptyState = document.getElementById('empty-state');
-const addNoteBtn = document.getElementById('add-note-btn');
-const confirmModal = document.getElementById('confirm-modal');
-const confirmMessage = document.getElementById('confirm-message');
-const confirmActionBtn = document.getElementById('confirm-action-btn');
-const cancelBtn = document.getElementById('cancel-btn');
+            // Get the access token from localStorage.
+            const accessToken = localStorage.getItem('accessToken');
+            const refreshToken = localStorage.getItem('refreshToken');
 
-const renderNotes = () => {
-    notesContainer.innerHTML = '';
-    if (notes.length === 0) {
-        emptyState.classList.remove('hidden');
-    } else {
-        emptyState.classList.add('hidden');
-        notes.forEach(note => {
-            const noteCard = document.createElement('div');
-            noteCard.id = `note-${note.id}`;
-            noteCard.classList.add('note-card', 'bg-gray-50', 'p-4', 'rounded-lg', 'shadow-sm', 'border', 'border-gray-200', 'flex', 'flex-col', 'space-y-2');
+            // If no tokens exist, redirect to the login page.
+            if (!accessToken || !refreshToken) {
+                window.location.href = 'login';
+                return;
+            }
 
-            noteCard.innerHTML = `
-                <input type="text" value="${note.title}" placeholder="Note Title" class="w-full text-lg font-semibold text-gray-800 bg-transparent border-b border-gray-300 focus:outline-none focus:border-indigo-500">
-                <textarea placeholder="Write your note here..." class="w-full h-32 resize-none text-sm text-gray-700 bg-transparent focus:outline-none">${note.content}</textarea>
-                <div class="flex justify-end space-x-2 mt-4">
-                    <button class="update-btn text-sm text-white bg-green-500 hover:bg-green-600 px-3 py-1 rounded-md">Update</button>
-                    <button class="delete-btn text-sm text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded-md">Delete</button>
-                </div>
-            `;
-            notesContainer.appendChild(noteCard);
+            // Function to fetch and display notes.
+            async function fetchNotes() {
+                try {
+                    const response = await fetch('/api/notes/', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${accessToken}`
+                        }
+                    });
 
-            // Event listeners added to the new note card
-            noteCard.querySelector('.update-btn').addEventListener('click', () => updateNote(note.id, noteCard));
-            noteCard.querySelector('.delete-btn').addEventListener('click', () => showConfirmModal('Are you sure you want to delete this note?', () => deleteNote(note.id)));
+                    // If the token is invalid or expired, redirect to login.
+                    if (response.status === 401) {
+                        window.location.href = 'login';
+                        return;
+                    }
+
+                    const notes = await response.json();
+                    renderNotes(notes);
+                } catch (error) {
+                    console.error('Error fetching notes:', error);
+                }
+            }
+
+            // Function to render notes on the page.
+            function renderNotes(notes) {
+                noteList.innerHTML = '';
+                notes.forEach(note => {
+                    const li = document.createElement('li');
+                    li.className = 'bg-gray-700 p-4 rounded-lg shadow-inner';
+                    li.innerHTML = `
+                        <p class="text-gray-200">${note.body}</p>
+                        <div class="mt-2 text-right text-sm text-gray-400">
+                            ${new Date(note.created_at).toLocaleDateString()}
+                        </div>
+                    `;
+                    noteList.appendChild(li);
+                });
+            }
+
+            // Event listener for the "Add Note" form submission.
+            addNoteForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const noteContent = noteContentInput.value;
+                if (!noteContent) return;
+
+                try {
+                    const response = await fetch('/api/notes/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${accessToken}`
+                        },
+                        body: JSON.stringify({ body: noteContent })
+                    });
+
+                    if (response.status === 401) {
+                        window.location.href = 'login';
+                        return;
+                    }
+
+                    if (response.ok) {
+                        noteContentInput.value = '';
+                        fetchNotes(); // Re-fetch notes to show the new one.
+                    } else {
+                        console.error('Failed to add note:', await response.json());
+                    }
+                } catch (error) {
+                    console.error('Error adding note:', error);
+                }
+            });
+
+            // Initial fetch of notes when the page loads.
+            fetchNotes();
         });
-    }
-};
-
-const addNote = () => {
-    const newNote = {
-        id: Date.now().toString(),
-        title: "New Note",
-        content: "Start writing here...",
-        timestamp: new Date().toISOString()
-    };
-    notes.unshift(newNote); // Added to the beginning to show it at the top
-    renderNotes();
-};
-
-const updateNote = (id, cardElement) => {
-    const noteIndex = notes.findIndex(note => note.id === id);
-    if (noteIndex !== -1) {
-        notes[noteIndex].title = cardElement.querySelector('input').value;
-        notes[noteIndex].content = cardElement.querySelector('textarea').value;
-        // No need to re-render the whole list for a simple update
-        console.log(`Note with ID ${id} updated.`);
-    }
-};
-
-const deleteNote = (id) => {
-    notes = notes.filter(note => note.id !== id);
-    renderNotes();
-};
-
-const showConfirmModal = (message, onConfirm) => {
-    confirmMessage.textContent = message;
-    confirmModal.classList.remove('hidden');
-    confirmModal.classList.add('flex');
-
-    const onConfirmClick = () => {
-        onConfirm();
-        hideConfirmModal();
-        confirmActionBtn.removeEventListener('click', onConfirmClick);
-    };
-
-    confirmActionBtn.addEventListener('click', onConfirmClick);
-};
-
-const hideConfirmModal = () => {
-    confirmModal.classList.add('hidden');
-    confirmModal.classList.remove('flex');
-};
-
-// Initial render
-document.addEventListener('DOMContentLoaded', renderNotes);
-
-// Event listeners
-addNoteBtn.addEventListener('click', addNote);
-cancelBtn.addEventListener('click', hideConfirmModal);
